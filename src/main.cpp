@@ -84,16 +84,20 @@ struct TestSimplexDimForDim {
 			return Tensor::tensor<real, (W::template dim<i>)... + 1>();
 		}(std::make_index_sequence<W::rank>{});
 #else	//until then
+		
+		// TODO instead of SeqToSeqMap using ::value, have it use operator()
 		using NW = Tensor::tensorScalarSeq<
 			real,
 			Common::SeqToSeqMap<typename W::dimseq, Inc>
 		>;
+		
 		auto nws = NW(ws);
 		nws(dim-1, dim-1) = 1;
 		//nws(int2{dim-1,dim-1}) = 1;
 		std::cout << "ws " << ws << std::endl;
 		std::cout << "nws " << nws << std::endl;
-#if 1	//rotate? or not?	
+
+#if 1	//rotate into the new dimension
 		//ok now rotate legs ... 
 		for (size_t i = 0; i < dim-1; ++i) {
 			for (size_t j = i + 1; j < dim; ++j) {
@@ -103,17 +107,16 @@ struct TestSimplexDimForDim {
 				real sinth = sin(theta);
 				rot(i,i) = rot(j,j) = costh;
 				rot(i,j) = -(rot(j,i) = sinth);
-#if 0 // TODO why isn't this compiling
-				using a = Tensor::Index<'a'>;
-				using b = Tensor::Index<'b'>;
-				using c = Tensor::Index<'c'>;
-				using d = Tensor::Index<'d'>;
-				nws(a,b) = rot(a,c) * nws(c,d) * rot(d,b);
+#if 0
+				constexpr auto a = Tensor::Index<'a'>{};
+				constexpr auto b = Tensor::Index<'b'>{};
+				constexpr auto c = Tensor::Index<'c'>{};
+				nws(a,b) = nws(a,c) * rot(c,b);
 #else
 				// each row is a distinct base vector of our simplex
 				// so just rotate the row components
 				//nws[i] = the i'th vector, rotate each i'th vector's components, so nws[i][k] * rot[k][j]
-//				nws = nws * rot;
+				nws = nws * rot;
 #endif
 			}
 		}
