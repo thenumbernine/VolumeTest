@@ -1,11 +1,13 @@
 #include "Common/Macros.h"		//crand
 #include "Common/Sequence.h"	//make_index_range
 #include "Tensor/Tensor.h"
+#include <sys/time.h>
+#include <stdlib.h>
 #include <iostream>
 
 using real = double;
 
-constexpr size_t maxdim = 3;
+constexpr size_t maxdim = 9;	// 10 is too much for release mode.  8 or 9 is too much for debug mode.
 
 template<int i, int dim>
 struct WedgeNTimes {
@@ -29,17 +31,16 @@ struct WedgeNTimes<dim-1, dim> {
 template<size_t sdim>	
 void testVolume(auto const & ws) {
 	auto w = WedgeNTimes<0, sdim>::go(ws);
-	auto wexp = w.expand();
-	std::cout << "w = random " << sdim << "-simplex in " << sdim << " dimensions:" << std::endl;
-	std::cout << wexp << std::endl;
-	auto wdual = w.dual();
-	std::cout << "*w: " << wdual << std::endl;
-	std::cout << "*w expanded (should match): " << wexp.dual() << std::endl;
-//	auto wFrob = wexp.lenSq();
+//	std::cout << "w = " << sdim << "-simplex in " << sdim << " dimensions:" << std::endl;
+	//auto wexp = w.expand();
+	//std::cout << wexp << std::endl;
+//	std::cout << "*w: " << w.dual() << std::endl;
+	//std::cout << "*w expanded (should match): " << wexp.dual() << std::endl;
 	auto wInner = w.wedge(w.dual()).dual();
 //	std::cout << "*(w ∧ *w): " << wInner << std::endl;
 	std::cout << "√(*(w ∧ *w)): " << sqrt(wInner) << std::endl;
 	// frob will match inner in rank-1 norms only
+//	auto wFrob = wexp.lenSq();
 //	std::cout << "|w|_frob: " << wFrob << std::endl;	// Frobenius norm
 //	std::cout << "√(|w|_frob): " << sqrt(wFrob) << std::endl;	// Frobenius norm
 }
@@ -76,7 +77,7 @@ struct TestSimplexDimForDim {
 		static_assert(W::rank == 2);
 		static_assert(W::template dim<0> == dim-1);
 		static_assert(W::template dim<1> == dim-1);
-		std::cout << "ws dim " << W::dims() << std::endl;
+		//std::cout << "ws dim " << W::dims() << std::endl;
 
 
 #if 0 // TODO how to use fold/seq to increment a seq by 1...
@@ -94,13 +95,14 @@ struct TestSimplexDimForDim {
 		auto nws = NW(ws);
 		nws(dim-1, dim-1) = 1;
 		//nws(int2{dim-1,dim-1}) = 1;
-		std::cout << "ws " << ws << std::endl;
-		std::cout << "nws " << nws << std::endl;
+//		std::cout << "ws: " << ws << std::endl;
+//		std::cout << "nws before rotate: " << nws << std::endl;
 
 #if 1	//rotate into the new dimension
 		//ok now rotate legs ... 
 		for (size_t i = 0; i < dim-1; ++i) {
-			for (size_t j = i + 1; j < dim; ++j) {
+			size_t j = dim-1; {
+			//for (size_t j = i + 1; j < dim; ++j) {
 				auto rot = NW([](int i, int j) -> real { return i == j ? 1 : 0; });
 				real theta = frand() * 2. * M_PI;
 				real costh = cos(theta);
@@ -122,6 +124,8 @@ struct TestSimplexDimForDim {
 		}
 #endif
 #endif
+		
+//		std::cout << "nws after rotate: " << nws << std::endl;
 
 		testVolume<sdim>(nws);
 
@@ -182,6 +186,7 @@ void testSimplexDim() {
 }
 
 int main() {
+	srand(time(nullptr));
 	// for constexpr (size_t i = 1; i <= maxdim; ++i) {
 	[]<auto ... i>(std::index_sequence<i...>) constexpr {
 		(testSimplexDim<i>(), ...);
