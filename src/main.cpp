@@ -3,8 +3,6 @@
 #include "Tensor/Tensor.h"
 #include <iostream>
 
-#error TODO you need some factor to make s-simplexes equal volume in all dimensions...
-
 using real = double;
 
 constexpr size_t maxdim = 3;
@@ -37,13 +35,13 @@ void testVolume(auto const & ws) {
 	auto wdual = w.dual();
 	std::cout << "*w: " << wdual << std::endl;
 	std::cout << "*w expanded (should match): " << wexp.dual() << std::endl;
-	auto wFrob = wexp.lenSq();
+//	auto wFrob = wexp.lenSq();
 	auto wInner = w.wedge(w.dual()).dual();
-	std::cout << "*(w ∧ *w): " << wInner << std::endl;
+//	std::cout << "*(w ∧ *w): " << wInner << std::endl;
 	std::cout << "√(*(w ∧ *w)): " << sqrt(wInner) << std::endl;
 	// frob will match inner in rank-1 norms only
-	std::cout << "|w|_frob: " << wFrob << std::endl;	// Frobenius norm
-	std::cout << "√(|w|_frob): " << sqrt(wFrob) << std::endl;	// Frobenius norm
+//	std::cout << "|w|_frob: " << wFrob << std::endl;	// Frobenius norm
+//	std::cout << "√(|w|_frob): " << sqrt(wFrob) << std::endl;	// Frobenius norm
 }
 
 #if 0
@@ -95,6 +93,7 @@ struct TestSimplexDimForDim {
 		//nws(int2{dim-1,dim-1}) = 1;
 		std::cout << "ws " << ws << std::endl;
 		std::cout << "nws " << nws << std::endl;
+#if 1	//rotate? or not?	
 		//ok now rotate legs ... 
 		for (size_t i = 0; i < dim-1; ++i) {
 			for (size_t j = i + 1; j < dim; ++j) {
@@ -104,17 +103,21 @@ struct TestSimplexDimForDim {
 				real sinth = sin(theta);
 				rot(i,i) = rot(j,j) = costh;
 				rot(i,j) = -(rot(j,i) = sinth);
-#if 0 // TODO why isn't this working				
+#if 0 // TODO why isn't this compiling
 				using a = Tensor::Index<'a'>;
 				using b = Tensor::Index<'b'>;
 				using c = Tensor::Index<'c'>;
 				using d = Tensor::Index<'d'>;
 				nws(a,b) = rot(a,c) * nws(c,d) * rot(d,b);
 #else
-				nws = rot * nws * rot.transpose();
+				// each row is a distinct base vector of our simplex
+				// so just rotate the row components
+				//nws[i] = the i'th vector, rotate each i'th vector's components, so nws[i][k] * rot[k][j]
+//				nws = nws * rot;
 #endif
 			}
 		}
+#endif
 #endif
 
 		testVolume<sdim>(nws);
