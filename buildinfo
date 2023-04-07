@@ -1,0 +1,6 @@
+distName='VolumeTest'
+distType='app'
+depends:append{
+	'../Common',
+	'../Tensor',
+}
