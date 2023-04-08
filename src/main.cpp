@@ -191,11 +191,6 @@ void testSimplexDimForDim() {
 	//Tensor::vec<real, dim>
 }
 #else
-template<int x>
-struct Inc {
-	static constexpr int value = x + 1;
-};
-
 template<
 	size_t sdim,	//simplex dimension
 	size_t dim,		//dimension to test in
@@ -220,10 +215,7 @@ struct TestSimplexDimForDim {
 #else	//until then
 		
 		// TODO instead of SeqToSeqMap using ::value, have it use operator()
-		using NW = Tensor::tensorScalarSeq<
-			real,
-			Common::SeqToSeqMap<typename W::dimseq, Inc>
-		>;
+		using NW = Tensor::tensor<real, W::template dim<0> + 1, W::template dim<1> + 1>;
 		
 		auto nws = NW(ws);
 		nws(dim-1, dim-1) = 1;
