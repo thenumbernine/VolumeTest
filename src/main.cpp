@@ -122,7 +122,7 @@ auto hodgeDualProfile(A const & a) {
 
 using real = double;
 
-constexpr size_t maxdim = 4;	// 10 is too much for release mode.  8 or 9 is too much for debug mode.
+constexpr size_t maxdim = 8;	// 10 is too much for release mode.  8 or 9 is too much for debug mode.
 
 template<int i, int dim>
 struct WedgeNTimes {
@@ -203,7 +203,7 @@ struct TestSimplexDimForDim {
 		// start with rank-n dim-n
 		// then rotate each component into dim-(n+1)
 		static_assert(W::rank == 2);
-		static_assert(W::template dim<0> == dim-1);
+		static_assert(W::template dim<0> == sdim);
 		static_assert(W::template dim<1> == dim-1);
 		//std::cout << "ws dim " << W::dims() << std::endl;
 
@@ -215,31 +215,31 @@ struct TestSimplexDimForDim {
 #else	//until then
 		
 		// TODO instead of SeqToSeqMap using ::value, have it use operator()
-		using NW = Tensor::tensor<real, W::template dim<0> + 1, W::template dim<1> + 1>;
-		
+		using NW = Tensor::tensor<real, sdim, dim>;
 		auto nws = NW(ws);
-		nws(dim-1, dim-1) = 1;
 		//nws(int2{dim-1,dim-1}) = 1;
 //		std::cout << "ws: " << ws << std::endl;
 //		std::cout << "nws before rotate: " << nws << std::endl;
+
+		using R = Tensor::tensor<real, dim, dim>;
 
 #if 1	//rotate into the new dimension
 		//ok now rotate legs ... 
 		for (size_t i = 0; i < dim-1; ++i) {
 			size_t j = dim-1; {
 			//for (size_t j = i + 1; j < dim; ++j) {
-				auto rot = NW([](int i, int j) -> real { return i == j ? 1 : 0; });
+				auto rot = R([](int i, int j) -> real { return i == j ? 1 : 0; });
 				real theta = frand() * 2. * M_PI;
 				real costh = cos(theta);
 				real sinth = sin(theta);
 				rot(i,i) = rot(j,j) = costh;
 				rot(i,j) = -(rot(j,i) = sinth);
-#if 0
+#if 1	// works
 				constexpr auto a = Tensor::Index<'a'>{};
 				constexpr auto b = Tensor::Index<'b'>{};
 				constexpr auto c = Tensor::Index<'c'>{};
 				nws(a,b) = nws(a,c) * rot(c,b);
-#else
+#elif 1	// works
 				// each row is a distinct base vector of our simplex
 				// so just rotate the row components
 				//nws[i] = the i'th vector, rotate each i'th vector's components, so nws[i][k] * rot[k][j]
@@ -254,7 +254,7 @@ struct TestSimplexDimForDim {
 
 		testVolume<sdim>(nws);
 
-		TestSimplexDimForDim<sdim, dim+1, stopdim>::template go<NW>(nws);
+		TestSimplexDimForDim<sdim, dim+1, stopdim>::template go(nws);
 	}
 };
 template<
