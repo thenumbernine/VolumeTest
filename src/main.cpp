@@ -122,20 +122,18 @@ auto hodgeDualProfile(A const & a) {
 
 using real = double;
 
-constexpr size_t maxdim = 8;	// 10 is too much for release mode.  8 or 9 is too much for debug mode.
+constexpr size_t maxdim = 5;	// 10 is too much for release mode.  8 or 9 is too much for debug mode.
 
 template<int i, int dim>
 struct WedgeNTimes {
 	static constexpr auto go(auto const & v) {
-		return v[i].wedge(
-			WedgeNTimes<i+1, dim>::go(v)
-		);
-	}
-};
-template<int dim>
-struct WedgeNTimes<dim-1, dim> {
-	static constexpr auto go(auto const & v) {
-		return v[dim-1];
+		if constexpr (i < dim-1) {
+			return v[i].wedge(
+				WedgeNTimes<i+1, dim>::go(v)
+			);
+		} else {
+			return v[dim-1];
+		}
 	}
 };
 
