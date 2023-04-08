@@ -3,4 +3,10 @@ distType='app'
 depends:append{
 	'../Common',
 	'../Tensor',
+	'../Profiler',
 }
+
+-- [[	dim=8 inner() runs 15s in gcc, 3s in clang
+compiler = 'clang++'
+linker = 'clang++'
+--]]
