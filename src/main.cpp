@@ -142,10 +142,11 @@ struct WedgeNTimes<dim-1, dim> {
 // sdim = simplex-dimension.  
 // for the first case it will match ws.dim<0> == ws.dim<1> (since ws.rank == 2)
 // for the rest, ws.dim<0> > sdim, so we gotta pass sdim
-template<size_t sdim>	
 void testVolume(auto const & ws) {
+	constexpr int sdim = std::decay_t<decltype(ws)>::template dim<0>;
+	
 	PROFILE();
-	std::cout << "ws: " << ws << std::endl;
+//	std::cout << "ws: " << ws << std::endl;
 	auto w = [&](){
 		PROFILE();
 		return WedgeNTimes<0, sdim>::go(ws);
@@ -178,32 +179,17 @@ void testVolume(auto const & ws) {
 //	std::cout << "√(|w|_frob): " << sqrt(wFrob) << std::endl;	// Frobenius norm
 }
 
-#if 0
 template<
-	size_t sdim,
-	size_t dim
->
-void testSimplexDimForDim() {
-	std::cout << "simplex dim " << sdim << " dim " << dim << std::endl;
-
-	//'dim' is the dim of the vectors
-	//'sdim' is the simplex dim <-> how many vectors
-	//Tensor::vec<real, dim>
-}
-#else
-template<
-	size_t sdim,	//simplex dimension
 	size_t dim,		//dimension to test in
 	size_t stopdim	//dimension to stop at
 >
-struct TestSimplexDimForDim {
-	template<typename W>
-	static constexpr void go(W const & ws) {
+void TestSimplexDimForDim(auto const & ws) {
+	if constexpr (dim < stopdim) {
 		std::cout << " === rotating from dim " << (dim-1) << " into dim " << dim << std::endl;
 		// start with rank-n dim-n
 		// then rotate each component into dim-(n+1)
-		static_assert(W::rank == 2);
-		static_assert(W::template dim<0> == sdim);
+		using W = std::decay_t<decltype(ws)>;
+		constexpr int sdim = W::template dim<0>;
 		static_assert(W::template dim<1> == dim-1);
 		//std::cout << "ws dim " << W::dims() << std::endl;
 
@@ -243,7 +229,7 @@ struct TestSimplexDimForDim {
 				// each row is a distinct base vector of our simplex
 				// so just rotate the row components
 				//nws[i] = the i'th vector, rotate each i'th vector's components, so nws[i][k] * rot[k][j]
-				nws = nws * rot;
+				nws *= rot;
 #endif
 			}
 		}
@@ -252,19 +238,11 @@ struct TestSimplexDimForDim {
 		
 //		std::cout << "nws after rotate: " << nws << std::endl;
 
-		testVolume<sdim>(nws);
+		testVolume(nws);
 
-		TestSimplexDimForDim<sdim, dim+1, stopdim>::template go(nws);
+		TestSimplexDimForDim<dim+1, stopdim>(nws);
 	}
-};
-template<
-	size_t sdim,
-	size_t stopdim
->
-struct TestSimplexDimForDim<sdim, stopdim, stopdim> {
-	static constexpr void go(auto const & v) {}
-};
-#endif
+}
 
 template<size_t dim>
 auto randomVec() {
@@ -301,14 +279,14 @@ void testSimplexDim() {
 #endif
 #endif
 
-	testVolume<sdim>(ws);
+	testVolume(ws);
 
 #if 0 // would be nice but I wanna use the prev function in the next, soo... another case of fold to repeatly apply a function (how to?)
 	[]<auto ... j>(std::index_sequence<j...>) constexpr {
 		(testSimplexDimForDim<sdim,j>(w), ...);
 	}(Common::make_index_range<sdim+1, maxdim+1>{});
 #else
-	TestSimplexDimForDim<sdim, sdim+1, maxdim+1>::go(ws);
+	TestSimplexDimForDim<sdim+1, maxdim+1>(ws);
 #endif
 }
 
