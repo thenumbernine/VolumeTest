@@ -6,7 +6,7 @@ depends:append{
 	'../Profiler',
 }
 
--- [[	dim=8 inner() runs 15s in gcc, 3s in clang
+--[[	dim=8 inner() runs 15s in gcc, 3s in clang
 compiler = 'clang++'
 linker = 'clang++'
 --]]

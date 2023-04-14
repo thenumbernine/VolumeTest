@@ -59,6 +59,8 @@ auto innerProfile(A const & a, B const & b) {
 		return a * b;
 	} else {
 		PROFILE();
+		constexpr int rank = A::rank;
+		static_assert(rank == B::rank);
 		using AS = typename A::Scalar;
 		using BS = typename B::Scalar;
 		using RS = decltype(AS() * BS());
@@ -75,11 +77,11 @@ std::cout << tensorxName(a) << " inner " << tensorxName(b) << std::endl;
 		asym
 		symR
 		asymR
-		
+
 		how can I optimize this?
 		if A is sym and B is sym (or A is asym and B is asym) then we can double up the symmetric indexes (same with symR) ... but how many times?
 		*/
-	
+
 		if constexpr (is_zero_v<A> || is_zero_v<B>) {
 		//if A or B is a zero then return zero.
 			PROFILE();
@@ -107,18 +109,15 @@ std::cout << tensorxName(a) << " inner " << tensorxName(b) << std::endl;
 			return innerProfile(a.s[0], b.s[0]) * (RS)constexpr_factorial(A::localRank);
 				// * (RS)ipow<A::localRank>(A::localDim);
 				// * (RS)consteval_nChooseR(A::localRank, A::localDim);
-#if 0
 		// if *any* neighboring indexes is of a sym(R) in A and asym(R) in B (or vice versa) then the result is zero (same with symR)
 		// i.e. a_i1_..._[ik_i{k+1}] b^i1^...^(ik^i{k+1}) = 0
-		// i.e. for rank-k, iterator i=0..k-2, 
-		//		if the nesting-index in A of i == nesting-index of i+1 
+		// i.e. for rank-k, iterator i=0..k-2,
+		//		if the nesting-index in A of i == nesting-index of i+1
 		//	... and same with nesting-index in B of i == nesting-index of i+1
 		//	... and is_sym(R) of that nesting in A and is_asym(R) of that nesting in B (or vice versa)
 		//	... then return 0
-		} else if constexpr (
-			false
-		) {
-#endif	
+		} else if constexpr (hasMatchingSymAndAsymIndexes<A,B>) {
+			return RS{};
 		} else {
 		//otherwise old fashioned
 			PROFILE();
@@ -249,7 +248,7 @@ void testVolume(auto const & ws) {
 	// number of unique elements is (dim ncr sdim)
 //	constexpr int sdim = std::decay_t<decltype(ws)>::template dim<0>;
 //	std::cout << "w = " << sdim << "-simplex in " << sdim << " dimensions:" << std::endl;
-	std::cout << "w: " << w << std::endl;	
+	std::cout << "w: " << w << std::endl;
 	auto wDual = [&](){
 		PROFILE();
 		return Tensor::hodgeDualProfile(w);
@@ -269,7 +268,7 @@ void testVolume(auto const & ws) {
 //	std::cout << "*(w ∧ *w): " << wInner << std::endl;
 	[&](){
 		PROFILE();
-		std::cout << "√(*(w ∧ *w)): " << sqrt(wInner) << std::endl;
+		std::cout << "1/m! √(*(w ∧ *w)): " << sqrt(wInner) / (real)Tensor::constexpr_factorial(ws.template dim<0>) << std::endl;
 	}();
 	// frob will match inner in rank-1 norms only
 //	auto wFrob = wexp.lenSq();
@@ -297,7 +296,7 @@ void TestSimplexDimForDim(auto const & ws) {
 			return Tensor::tensor<real, (W::template dim<i>)... + 1>();
 		}(std::make_index_sequence<W::rank>{});
 #else	//until then
-		
+
 		// TODO instead of SeqToSeqMap using ::value, have it use operator()
 		using NW = Tensor::tensor<real, sdim, dim>;
 		auto nws = NW(ws);
@@ -308,7 +307,7 @@ void TestSimplexDimForDim(auto const & ws) {
 		using R = Tensor::tensor<real, dim, dim>;
 
 #if 1	//rotate into the new dimension
-		//ok now rotate legs ... 
+		//ok now rotate legs ...
 		for (size_t i = 0; i < dim-1; ++i) {
 			size_t j = dim-1; {
 			//for (size_t j = i + 1; j < dim; ++j) {
@@ -333,7 +332,7 @@ void TestSimplexDimForDim(auto const & ws) {
 		}
 #endif
 #endif
-		
+
 //		std::cout << "nws after rotate: " << nws << std::endl;
 
 		testVolume(nws);
@@ -357,7 +356,7 @@ void testSimplexDim() {
 	std::cout << "testing simplex of dimension " << sdim << std::endl;
 
 	//start with a random 'sdim'-dimensioned vector
-#if 0	//can you use fold expressions to self-apply a function only N times 
+#if 0	//can you use fold expressions to self-apply a function only N times
 	// I guess I can if I overload the custom class' binary operators ...
 	auto w = []<auto ... j>(std::index_sequence<j...>) constexpr {
 		return randomVec<sdim>().wedge(...);
@@ -392,67 +391,9 @@ int main() {
 	PROFILE_BEGIN_FRAME()
 	PROFILE();
 	srand(time(nullptr));
-#if 0
 	// for constexpr (size_t i = 1; i <= maxdim; ++i) {
 	[]<auto ... i>(std::index_sequence<i...>) constexpr {
 		(testSimplexDim<i>(), ...);
 	}(Common::make_index_range<1, maxdim+1>{});
-#else
-
-	// turns out rank 1x1x...xN ctors doesn't' work ... unless it's 1x1x ... x1
-#if 1
-	// TODO why isn't this working?
-	using real2 = Tensor::tensor<real, 2>;
-	auto i = real2{1,3};
-	auto j = real2{2,4};
-	using real1x2 = Tensor::tensor<real, 1, 2>;
-#if 1	// works
-	auto ii = real1x2{i};
-	auto jj = real1x2{j};
-#endif
-#if 0	// fails
-	auto ii = real1x2(i);	// doesn't work
-	auto jj = real1x2(j);
-#endif
-	assert(innerProfile(ii, jj) == 14);
-	assert(innerProfile(Tensor::tensor<real, 1, 3>{{1,3,2}}, Tensor::tensor<real, 1, 3>{{2,4,3}}) == 20);
-#endif
-
-
-
-	// rank-1 vectors
-	assert(innerProfile(Tensor::tensor<real, 1>{3}, Tensor::tensor<real, 1>{4}) == 12);
-	assert(innerProfile(Tensor::tensor<real, 2>{1,3}, Tensor::tensor<real, 2>{2,4}) == 14);
-	assert(innerProfile(Tensor::tensor<real, 3>{1,3,2}, Tensor::tensor<real, 3>{2,4,3}) == 20);
-
-	// rank-2 dense vectors
-	assert(innerProfile(Tensor::tensor<real, 1, 1>{{3}}, Tensor::tensor<real, 1, 1>{{5}}) == 15);
-	assert(innerProfile(Tensor::tensor<real, 2, 1>{{1},{3}}, Tensor::tensor<real, 2, 1>{{2},{4}}) == 14);
-
-	assert(innerProfile(Tensor::tensor<real, 2, 2>{{1, 2},{3, 4}}, Tensor::tensor<real, 2, 2>{{4, 3},{2, 1}}) == 20);
-	
-	assert(innerProfile(Tensor::tensor<real, 3, 1>{{1},{3},{2}}, Tensor::tensor<real, 3, 1>{{2},{4},{3}}) == 20);
-	
-	assert(innerProfile(Tensor::tensor<real, 3, 2>{{1,2},{3,4},{2,5}}, Tensor::tensor<real, 3, 2>{{2,1},{4,2},{3,3}}) == 45);
-	assert(innerProfile(Tensor::tensor<real, 3, 3>{{1,2,3},{4,5,6},{7,8,9}}, Tensor::tensor<real, 3, 3>{{9,8,7},{6,5,4},{3,2,1}}) == 165);
-	
-
-
-	// rank-3 dense
-
-	// rank-2 ident
-
-	// rank-2 sym*sym
-	// rank-2 sym*asym
-	// rank-2 asym*sym
-	// rank-2 asym*asym
-
-	// rank-3 same
-
-	// rank-4 same
-
-	// rank-4 ident outer rank-2
-
-#endif
 	PROFILE_END_FRAME()
 }
